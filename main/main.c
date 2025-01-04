@@ -1,7 +1,10 @@
 #include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "esp_chip_info.h"
 #include "esp_err.h"
+#include "esp_flash.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "hal/gpio_hal.h"
@@ -10,6 +13,7 @@
 #include "sh1107.h"
 #include "soc/timer_group_reg.h"
 #include "spi_common.h"
+#include "spi_flash_mmap.h"
 #include "web/web_common.h"
 #include "web/wifi.h"
 #include "web/ws.h"
@@ -21,12 +25,24 @@
 #error "Wrong target"
 #endif
 
+// 4MB
+
 uint32_t restart_timer = 0;
 
 void app_main(void)
 {
 	ESP_LOGI("", "Running on core: %d\n", xPortGetCoreID());
 	ESP_LOGI("HEAP", "Free heap: %d", xPortGetFreeHeapSize());
+
+	esp_chip_info_t chip_info;
+	esp_chip_info(&chip_info);
+	printf("This is %s chip with %d CPU core(s), WiFi%s%s, ", CONFIG_IDF_TARGET, chip_info.cores, (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
+		   (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
+	printf("silicon revision %d, ", chip_info.revision);
+	uint32_t size_flash_chip;
+	esp_flash_get_size(NULL, &size_flash_chip);
+	printf("%ldMB %s flash\n", size_flash_chip / (1024 * 1024), (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+	printf("Minimum free heap size: %ld bytes\n", esp_get_minimum_free_heap_size());
 
 	spi_common_init();
 	sh1107_init();
